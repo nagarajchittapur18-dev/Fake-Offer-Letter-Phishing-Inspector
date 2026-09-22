@@ -53,7 +53,7 @@ export interface ScanPayload {
   file?: File | null
 }
 
-const BASE_URL = '/api'
+const BASE_URL = (import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL).replace(/\/+$/, '') : '') + '/api'
 
 export async function scanPayload(payload: ScanPayload): Promise<ScanResponse> {
   const form = new FormData()
