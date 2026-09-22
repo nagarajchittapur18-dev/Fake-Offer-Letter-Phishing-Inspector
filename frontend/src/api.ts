@@ -1,79 +1,161 @@
-// ── Types mirroring the FastAPI Pydantic schemas ────────────────────────────
+/**
+ * V2 API types matching the backend schemas.py
+ */
 
-export type Severity = 'Critical' | 'High' | 'Medium' | 'Low'
+export type Severity = "Critical" | "High" | "Medium" | "Low";
+export type RiskLevel = "LOW" | "SUSPICIOUS" | "HIGH" | "CRITICAL";
+export type RiskCategory =
+  | "Financial/Payment"
+  | "Urgency/Coercion"
+  | "Recruitment Anomaly"
+  | "Email Provider"
+  | "Organization Mismatch"
+  | "Domain Intelligence"
+  | "URL Risk"
+  | "AI Semantic";
 
-export interface Flag {
-  category: string
-  severity: Severity
-  evidence: string
-}
+export type InputType = "text" | "file" | "url";
 
-export interface DomainDetails {
-  domain:        string | null
-  creation_date: string | null
-  age_in_days:   number | null
-  penalty:       number
-}
-
-export interface GeminiAnalysis {
-  payment_demand_detected:   boolean
-  urgency_detected:          boolean
-  interview_bypass_detected: boolean
-  free_email_domain_used:    boolean
-  ai_confidence_score:       number
-  flags:                     Flag[]
-  verdict_summary:           string
-  ai_audit_available?:       boolean
+export interface RiskSignal {
+  category: RiskCategory;
+  severity: Severity;
+  score_contribution: number;
+  evidence: string;
+  explanation: string;
 }
 
 export interface ScoreBreakdown {
-  ai_component:           number
-  payment_penalty:        number
-  domain_penalty:         number
-  process_bypass_penalty: number
-  raw_sum:                number
-  threat_index:           number
+  financial_payment: number;    // max 25
+  urgency_coercion: number;     // max 10
+  recruitment_anomaly: number;  // max 10
+  email_provider: number;       // max 10
+  org_mismatch: number;         // max 15
+  domain_intelligence: number;  // max 15
+  url_risk: number;             // max 10
+  ai_semantic: number;          // max 5
+  total: number;
+}
+
+export interface DomainIntelligence {
+  domain: string | null;
+  age_days: number | null;
+  created: string | null;
+  provider_type: string;
+  registrar: string | null;
+  score_contribution: number;
+  notes: string[];
+}
+
+export interface URLAnalysis {
+  url: string;
+  is_reachable: boolean;
+  is_suspicious: boolean;
+  is_ssrf_blocked: boolean;
+  final_url: string | null;
+  status_code: number | null;
+  redirect_count: number;
+  score_contribution: number;
+  evidence: string;
+}
+
+export interface AIAnalysis {
+  available: boolean;
+  model: string | null;
+  confidence_score: number;
+  score_contribution: number;
+  verdict_summary: string;
+  semantic_flags: string[];
 }
 
 export interface ScanResponse {
-  threat_index:           number
-  verdict_summary:        string
-  flags:                  Flag[]
-  domain_details:         DomainDetails | null
-  ai_analysis:            GeminiAnalysis
-  safety_recommendations: string[]
-  score_breakdown:        ScoreBreakdown
+  scan_id: string;
+  threat_index: number;
+  risk_level: RiskLevel;
+  verdict_summary: string;
+  risk_signals: RiskSignal[];
+  score_breakdown: ScoreBreakdown;
+  domain_intelligence: DomainIntelligence | null;
+  url_analyses: URLAnalysis[];
+  ai_analysis: AIAnalysis;
+  recommendations: string[];
+  metadata: Record<string, unknown>;
+  input_type: InputType;
+  scanned_at: string;
 }
 
-// ── Scan payload: now uses FormData for multipart file upload ─────────────────
-
-export interface ScanPayload {
-  text?: string
-  url?:  string
-  file?: File | null
+export interface HealthComponentStatus {
+  status: "online" | "degraded" | "offline";
+  message: string;
 }
 
-const BASE_URL = (import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL).replace(/\/+$/, '') : '') + '/api'
+export interface HealthResponse {
+  status: "healthy" | "degraded" | "unhealthy";
+  version: string;
+  components: Record<string, HealthComponentStatus>;
+  timestamp: string;
+}
 
-export async function scanPayload(payload: ScanPayload): Promise<ScanResponse> {
-  const form = new FormData()
-  if (payload.text) form.append('text', payload.text)
-  if (payload.url)  form.append('url',  payload.url)
-  if (payload.file) form.append('file', payload.file)
+export interface ScanHistoryItem {
+  scan_id: string;
+  created_at: string;
+  input_type: string;
+  source_name: string | null;
+  domain: string | null;
+  threat_index: number;
+  risk_level: RiskLevel;
+  signal_count: number;
+}
 
-  const res = await fetch(`${BASE_URL}/scan`, { method: 'POST', body: form })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail ?? 'Scan request failed')
+// ── API client ─────────────────────────────────────────────────────────────────
+
+const BASE =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "/api"
+    : "https://fake-offer-letter-phishing-inspector.onrender.com/api";
+
+export async function getHealth(): Promise<HealthResponse> {
+  const r = await fetch(`${BASE}/health`);
+  if (!r.ok) throw new Error("Health check failed");
+  return r.json();
+}
+
+export async function scanText(
+  text: string,
+  senderEmail?: string
+): Promise<ScanResponse> {
+  const r = await fetch(`${BASE}/scan/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, sender_email: senderEmail || null }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: "Scan failed" }));
+    throw new Error(err.detail || "Scan failed");
   }
-  return res.json() as Promise<ScanResponse>
+  return r.json();
 }
 
-export async function checkHealth(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE_URL}/health`)
-    return res.ok
-  } catch {
-    return false
+export async function scanFile(file: File): Promise<ScanResponse> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(`${BASE}/scan/file`, { method: "POST", body: fd });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: "File scan failed" }));
+    throw new Error(err.detail || "File scan failed");
   }
+  return r.json();
+}
+
+export async function getScanHistory(): Promise<ScanHistoryItem[]> {
+  const r = await fetch(`${BASE}/scans`);
+  if (!r.ok) throw new Error("Failed to load history");
+  return r.json();
+}
+
+export async function deleteScan(scanId: string): Promise<void> {
+  await fetch(`${BASE}/scans/${scanId}`, { method: "DELETE" });
+}
+
+export function reportUrl(scanId: string): string {
+  return `${BASE}/report/${scanId}`;
 }

@@ -475,7 +475,9 @@
 <!-- ════════════════════ SCRIPT ════════════════════ -->
 <script>
 // ── Constants ─────────────────────────────────────────────────────────────────
-const API    = 'http://localhost:8000'
+const API    = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : 'https://fake-offer-letter-phishing-inspector.onrender.com'
 const ARC    = 263.8   // full semicircle circumference at r=84
 const STEPS  = ['Parsing Document…','WHOIS Domain Lookup…','Heuristic Regex Scan…','Gemini AI Analysis…']
 const MAX_MB = 10 * 1024 * 1024

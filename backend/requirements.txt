@@ -3,10 +3,15 @@ uvicorn[standard]
 gunicorn
 google-genai
 python-whois
-pydantic
+pydantic>=2.0
+pydantic-settings
 python-dotenv
 httpx
 pytest
+pytest-asyncio
+httpx
 pypdf
 python-docx
 python-multipart
+aiosqlite
+reportlab
