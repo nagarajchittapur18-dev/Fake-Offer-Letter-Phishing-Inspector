@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+google-genai
+python-whois
+pydantic
+python-dotenv
+httpx
+pytest
+pypdf
+python-docx
+python-multipart
