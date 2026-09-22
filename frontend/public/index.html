@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phishing Inspector — Fake Offer Letter &amp; Scam Detector</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            canvas:  '#0b0f19',
+            panel:   '#0f172a',
+            card:    '#111827',
+            border:  '#1e293b',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0b0f19;
+      color: #f1f5f9;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Gauge arc transition */
+    #gauge-arc {
+      transition: stroke-dashoffset 1.3s cubic-bezier(0.34, 1.4, 0.64, 1),
+                  stroke 0.6s ease;
+      transform-origin: center;
+      transform: rotate(-90deg);
+    }
+
+    /* Radar rings */
+    @keyframes ripple {
+      0%   { transform: scale(0.75); opacity: 0.7; }
+      100% { transform: scale(1.8);  opacity: 0;   }
+    }
+    .ring-1 { animation: ripple 1.8s ease-out infinite; }
+    .ring-2 { animation: ripple 1.8s ease-out 0.55s infinite; }
+
+    /* Slide-up entrance */
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+    .slide-up { animation: slideUp 0.4s ease forwards; }
+
+    /* Active tab */
+    .tab-active {
+      color: #fff !important;
+      background: #1e293b;
+      border-bottom: 2px solid #6366f1 !important;
+    }
+
+    /* Drag-over */
+    #drop-zone.over {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.07);
+    }
+
+    /* Severity chips */
+    .chip-Critical { background:rgba(220,38,38,.18); color:#fca5a5; border-color:#991b1b; }
+    .chip-High     { background:rgba(234,88,12,.18);  color:#fdba74; border-color:#9a3412; }
+    .chip-Medium   { background:rgba(202,138,4,.18);  color:#fde047; border-color:#92400e; }
+    .chip-Low      { background:rgba(34,197,94,.18);  color:#86efac; border-color:#14532d; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<!-- ════════════════════ NAV ════════════════════ -->
+<header class="sticky top-0 z-50 border-b border-slate-800 bg-[#0b0f19]/95 backdrop-blur-md flex-shrink-0">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+
+    <!-- Brand -->
+    <div class="flex items-center gap-2.5 flex-shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center shadow shadow-indigo-900/60">
+        <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
+      </div>
+      <span class="text-sm font-bold text-white tracking-tight hidden sm:block">
+        Fake Offer Letter &amp; Phishing Inspector
+      </span>
+      <span class="text-sm font-bold text-white tracking-tight sm:hidden">Phishing Inspector</span>
+    </div>
+
+    <!-- Demo presets -->
+    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 justify-center px-2">
+      <button onclick="loadDemo('equipment')"
+        class="whitespace-nowrap text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-slate-700 bg-slate-900/80 hover:border-red-700 hover:bg-red-950/30 hover:text-red-300 text-slate-400 transition flex-shrink-0">
+        🚨 Equipment Scam
+      </button>
+      <button onclick="loadDemo('rental')"
+        class="whitespace-nowrap text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-slate-700 bg-slate-900/80 hover:border-amber-700 hover:bg-amber-950/30 hover:text-amber-300 text-slate-400 transition flex-shrink-0">
+        🏠 Rental Trap
+      </button>
+      <button onclick="loadDemo('legit')"
+        class="whitespace-nowrap text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-slate-700 bg-slate-900/80 hover:border-emerald-700 hover:bg-emerald-950/30 hover:text-emerald-300 text-slate-400 transition flex-shrink-0">
+        ✅ Legitimate Offer
+      </button>
+    </div>
+
+    <!-- Engine status -->
+    <div class="flex items-center gap-1.5 text-[10px] bg-emerald-950/50 border border-emerald-800/50 text-emerald-400 px-3 py-1.5 rounded-full flex-shrink-0">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="hidden sm:inline">Gemini 3.6 Flash Engine Online</span>
+      <span class="sm:hidden">Gemini 3.6 Online</span>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════ MAIN GRID ════════════════════ -->
+<main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+  <!-- ══════ LEFT: Ingestion Console (6 cols) ══════ -->
+  <section class="lg:col-span-6 flex flex-col gap-5">
+
+    <!-- Section label -->
+    <div class="flex items-center gap-2">
+      <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Ingestion Console</h2>
+    </div>
+
+    <!-- Tab panel -->
+    <div class="rounded-2xl border border-slate-800 bg-[#0f172a] overflow-hidden">
+
+      <!-- Tabs -->
+      <div class="flex border-b border-slate-800">
+        <button id="tab-upload" onclick="switchTab('upload')"
+          class="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-300 hover:bg-slate-800/40 transition">
+          <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Upload Offer Letter
+        </button>
+        <button id="tab-paste" onclick="switchTab('paste')"
+          class="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-300 hover:bg-slate-800/40 transition tab-active">
+          <i data-lucide="pen-line" class="w-3.5 h-3.5"></i> Paste Raw Text
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+
+        <!-- ── Upload Tab ── -->
+        <div id="pane-upload" class="hidden space-y-3">
+          <div id="drop-zone"
+            ondragover="event.preventDefault(); this.classList.add('over')"
+            ondragleave="this.classList.remove('over')"
+            ondrop="handleDrop(event)"
+            onclick="document.getElementById('file-input').click()"
+            class="cursor-pointer rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-600 bg-slate-950/30 p-10 text-center transition select-none">
+            <i data-lucide="file-up" class="w-9 h-9 text-slate-600 mx-auto mb-3"></i>
+            <p class="text-sm font-medium text-slate-300">
+              Drop your file here or <span class="text-indigo-400 underline underline-offset-2">browse</span>
+            </p>
+            <p class="text-xs text-slate-600 mt-1">PDF · DOCX · TXT · EML &nbsp;·&nbsp; Max 10 MB</p>
+            <input id="file-input" type="file" accept=".pdf,.docx,.txt,.eml" class="hidden"
+              onchange="handleFileSelect(this.files[0])" />
+          </div>
+
+          <!-- File status bar -->
+          <div id="file-bar" class="hidden items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3">
+            <i data-lucide="file-text" class="w-7 h-7 text-slate-400 flex-shrink-0"></i>
+            <div class="flex-1 min-w-0">
+              <p id="file-name" class="text-sm font-semibold text-slate-200 truncate"></p>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span id="file-ext"  class="text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-600 bg-slate-700 text-slate-300 uppercase"></span>
+                <span id="file-size" class="text-xs text-slate-500"></span>
+              </div>
+            </div>
+            <button onclick="removeFile()" title="Remove file"
+              class="p-1.5 rounded-lg hover:bg-slate-700 text-slate-500 hover:text-red-400 transition flex-shrink-0">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Upload error -->
+          <p id="file-err" class="hidden text-xs text-red-400 flex items-center gap-1">
+            <i data-lucide="alert-circle" class="w-3.5 h-3.5 flex-shrink-0"></i>
+            <span id="file-err-msg"></span>
+          </p>
+        </div>
+
+        <!-- ── Paste Tab ── -->
+        <div id="pane-paste" class="space-y-1.5">
+          <label class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <i data-lucide="file-text" class="w-3 h-3"></i> Offer Letter / Contract / Email
+          </label>
+          <textarea id="offer-text" rows="9"
+            placeholder="Paste the full offer letter, recruitment email, or rental contract text here…"
+            oninput="updateCount()"
+            class="w-full max-h-64 h-56 resize-none overflow-y-auto rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 px-4 py-3 text-sm text-slate-200 placeholder-slate-700 outline-none font-mono leading-relaxed transition"></textarea>
+          <div class="flex items-center justify-between">
+            <span id="char-count" class="text-[11px] text-slate-700">0 characters</span>
+            <button onclick="clearText()" class="text-[11px] text-slate-600 hover:text-slate-400 transition">Clear</button>
+          </div>
+        </div>
+
+        <!-- URL / Domain input -->
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <i data-lucide="globe" class="w-3 h-3"></i> Target URL or Recruiter Email
+            <span class="font-normal normal-case text-slate-700 ml-1">— optional</span>
+          </label>
+          <input id="target-url" type="text"
+            placeholder="careers.company.com · recruiter@company.com"
+            class="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 px-4 py-2.5 text-sm text-slate-200 placeholder-slate-700 outline-none transition" />
+        </div>
+
+        <!-- Error banner -->
+        <div id="scan-err" class="hidden items-start gap-2 rounded-xl bg-red-950/40 border border-red-800 px-4 py-3 text-xs text-red-300">
+          <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400"></i>
+          <span id="scan-err-msg"></span>
+        </div>
+
+        <!-- Scan button -->
+        <div id="action-row">
+          <button onclick="runScan()" id="scan-btn"
+            class="w-full flex items-center justify-center gap-2 rounded-xl py-3.5
+              bg-gradient-to-r from-indigo-600 to-violet-700
+              hover:from-indigo-500 hover:to-violet-600
+              active:scale-[.98] text-white font-bold text-sm
+              shadow-lg shadow-indigo-950/60 transition-all">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            Run Forensic Security Scan
+          </button>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loading-row" class="hidden flex-col items-center gap-4 py-4">
+          <!-- Radar -->
+          <div class="relative w-14 h-14 flex items-center justify-center">
+            <div class="ring-1 absolute w-14 h-14 rounded-full border border-indigo-500/40"></div>
+            <div class="ring-2 absolute w-10 h-10 rounded-full border border-indigo-500/60"></div>
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center shadow shadow-indigo-900/60">
+              <i data-lucide="scan-line" class="w-4 h-4 text-white"></i>
+            </div>
+          </div>
+          <!-- Steps -->
+          <div id="steps-wrap" class="w-full max-w-xs space-y-2"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- How-it-works strip -->
+    <div class="rounded-2xl border border-slate-800 bg-[#0f172a] px-5 py-4 grid grid-cols-4 gap-3">
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <div class="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-900/60 flex items-center justify-center">
+          <i data-lucide="file-search" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <p class="text-[10px] text-slate-500 font-medium leading-snug">Parse<br/>Document</p>
+      </div>
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <div class="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-900/60 flex items-center justify-center">
+          <i data-lucide="globe-2" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <p class="text-[10px] text-slate-500 font-medium leading-snug">WHOIS<br/>Lookup</p>
+      </div>
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <div class="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-900/60 flex items-center justify-center">
+          <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <p class="text-[10px] text-slate-500 font-medium leading-snug">Gemini AI<br/>Analysis</p>
+      </div>
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <div class="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-900/60 flex items-center justify-center">
+          <i data-lucide="gauge" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <p class="text-[10px] text-slate-500 font-medium leading-snug">Threat<br/>Index Score</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ RIGHT: Threat Intelligence (6 cols) ══════ -->
+  <section class="lg:col-span-6 flex flex-col gap-5">
+
+    <div class="flex items-center gap-2">
+      <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i>
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Threat Intelligence</h2>
+    </div>
+
+    <!-- ── Empty state ── -->
+    <div id="idle-state" class="rounded-2xl border border-dashed border-slate-800 bg-[#0f172a] flex flex-col items-center justify-center py-16 px-8 text-center gap-5 min-h-[420px]">
+      <div class="relative">
+        <div class="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+          <i data-lucide="shield" class="w-10 h-10 text-slate-700"></i>
+        </div>
+        <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-slate-800 border-2 border-[#0f172a] flex items-center justify-center">
+          <i data-lucide="clock" class="w-2.5 h-2.5 text-slate-500"></i>
+        </span>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-slate-400">Awaiting Offer Document or URL</h3>
+        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-xs mx-auto">
+          Upload or paste an offer letter, then click<br/>
+          <strong class="text-slate-500">"Run Forensic Security Scan"</strong> to begin.
+        </p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-1.5">
+        <span class="text-[10px] bg-slate-800/80 border border-slate-800 text-slate-600 px-2 py-1 rounded-full">Payment Trap Detection</span>
+        <span class="text-[10px] bg-slate-800/80 border border-slate-800 text-slate-600 px-2 py-1 rounded-full">Domain Age WHOIS</span>
+        <span class="text-[10px] bg-slate-800/80 border border-slate-800 text-slate-600 px-2 py-1 rounded-full">Urgency Pressure Scan</span>
+        <span class="text-[10px] bg-slate-800/80 border border-slate-800 text-slate-600 px-2 py-1 rounded-full">Free Email Detection</span>
+        <span class="text-[10px] bg-slate-800/80 border border-slate-800 text-slate-600 px-2 py-1 rounded-full">Gemini Forensic Audit</span>
+      </div>
+    </div>
+
+    <!-- ── Active results ── -->
+    <div id="results-state" class="hidden flex-col gap-4">
+
+      <!-- 1. Gauge -->
+      <div class="rounded-2xl border border-slate-800 bg-[#0f172a] p-5 slide-up">
+        <div class="flex items-center gap-1.5 mb-4">
+          <i data-lucide="gauge" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Scam Threat Index</span>
+        </div>
+
+        <div class="flex flex-col items-center gap-3">
+          <!-- SVG gauge -->
+          <div class="relative select-none">
+            <svg width="200" height="118" viewBox="0 0 200 118">
+              <!-- Track -->
+              <path d="M16 100 A84 84 0 0 1 184 100"
+                fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+              <!-- Zone overlays -->
+              <path d="M16 100 A84 84 0 0 1 79.6 20.5"
+                fill="none" stroke="rgba(34,197,94,0.12)" stroke-width="14"/>
+              <path d="M79.6 20.5 A84 84 0 0 1 150 22"
+                fill="none" stroke="rgba(245,158,11,0.12)" stroke-width="14"/>
+              <path d="M150 22 A84 84 0 0 1 184 100"
+                fill="none" stroke="rgba(239,68,68,0.12)" stroke-width="14"/>
+              <!-- Active arc -->
+              <path id="gauge-arc"
+                d="M16 100 A84 84 0 0 1 184 100"
+                fill="none" stroke="#22c55e" stroke-width="14" stroke-linecap="round"
+                stroke-dasharray="263.8" stroke-dashoffset="263.8"/>
+            </svg>
+            <!-- Score overlay -->
+            <div class="absolute inset-0 flex flex-col items-center justify-end pb-1.5 pointer-events-none">
+              <div id="gauge-score" class="text-4xl font-black tabular-nums text-emerald-400 leading-none">0</div>
+              <div class="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">/100</div>
+            </div>
+          </div>
+
+          <!-- Status badge -->
+          <div id="status-badge" class="flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold bg-emerald-950/40 border-emerald-800 text-emerald-400">
+            <span id="badge-emoji">✅</span>
+            <span id="badge-label">Verified Safe</span>
+          </div>
+
+          <!-- Score breakdown mini-bars -->
+          <div id="breakdown" class="w-full space-y-2 pt-3 mt-1 border-t border-slate-800"></div>
+        </div>
+      </div>
+
+      <!-- AI Fallback Badge -->
+      <div id="ai-fallback-badge" class="hidden rounded-xl bg-amber-950/40 border border-amber-800/80 px-4 py-2.5 text-xs font-semibold text-amber-300 items-center gap-2 slide-up">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+        <span>AI Audit Unavailable — Heuristics Applied</span>
+      </div>
+
+      <!-- 2. Domain Telemetry -->
+      <div id="domain-card" class="hidden rounded-2xl border border-slate-800 bg-[#0f172a] p-5 slide-up">
+        <div class="flex items-center gap-1.5 mb-3">
+          <i data-lucide="globe-2" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Domain Telemetry</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <div class="rounded-xl bg-slate-950/60 border border-slate-800 p-2.5 text-center">
+            <p class="text-[9px] text-slate-600 mb-1 uppercase tracking-wider">Domain</p>
+            <p id="dom-name" class="text-xs font-mono font-bold text-slate-200 truncate">—</p>
+          </div>
+          <div class="rounded-xl bg-slate-950/60 border border-slate-800 p-2.5 text-center">
+            <p class="text-[9px] text-slate-600 mb-1 uppercase tracking-wider">Registered</p>
+            <p id="dom-date" class="text-xs font-medium text-slate-300">—</p>
+          </div>
+          <div class="rounded-xl bg-slate-950/60 border border-slate-800 p-2.5 text-center">
+            <p class="text-[9px] text-slate-600 mb-1 uppercase tracking-wider">Age</p>
+            <p id="dom-age"  class="text-xs font-bold">—</p>
+          </div>
+        </div>
+        <div id="dom-risk-bar" class="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs"></div>
+      </div>
+
+      <!-- 3. AI Forensic Assessment -->
+      <div class="rounded-2xl border border-slate-800 bg-[#0f172a] p-5 slide-up">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">AI Auditor Assessment</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+              <div id="conf-bar" class="h-full rounded-full bg-violet-500 transition-all duration-700" style="width:0%"></div>
+            </div>
+            <span id="conf-pct" class="text-[10px] font-bold text-violet-400 tabular-nums">0%</span>
+          </div>
+        </div>
+        <p id="verdict-text" class="text-sm text-slate-300 leading-relaxed"></p>
+
+        <!-- Threat vectors grid -->
+        <div id="vectors-grid" class="grid grid-cols-2 gap-2 mt-4"></div>
+      </div>
+
+      <!-- 4. Red-Flag Evidence Feed -->
+      <div id="flags-card" class="hidden rounded-2xl border border-slate-800 bg-[#0f172a] p-5 slide-up">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-red-400"></i>
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Risk Indicators</span>
+          </div>
+          <span id="flags-count" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400"></span>
+        </div>
+        <div id="flags-feed" class="space-y-2.5 max-h-64 overflow-y-auto pr-0.5"></div>
+      </div>
+
+      <!-- 5. Countermeasures -->
+      <div id="recs-card" class="hidden rounded-2xl border border-slate-800 bg-[#0f172a] p-5 slide-up">
+        <div class="flex items-center gap-1.5 mb-3">
+          <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Countermeasures</span>
+        </div>
+        <ul id="recs-list" class="space-y-2.5 mb-4"></ul>
+        <!-- Report links -->
+        <div class="pt-3 border-t border-slate-800">
+          <p class="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">Report This Scam</p>
+          <div class="flex flex-wrap gap-1.5">
+            <a href="https://reportfraud.ftc.gov" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 border border-indigo-900/50 hover:border-indigo-700 rounded-lg px-2 py-1 transition">
+              <i data-lucide="external-link" class="w-2.5 h-2.5"></i> FTC (US)
+            </a>
+            <a href="https://ic3.gov" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 border border-indigo-900/50 hover:border-indigo-700 rounded-lg px-2 py-1 transition">
+              <i data-lucide="external-link" class="w-2.5 h-2.5"></i> FBI IC3
+            </a>
+            <a href="https://actionfraud.police.uk" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 border border-indigo-900/50 hover:border-indigo-700 rounded-lg px-2 py-1 transition">
+              <i data-lucide="external-link" class="w-2.5 h-2.5"></i> Action Fraud (UK)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- New scan button -->
+      <button onclick="resetAll()"
+        class="w-full py-3 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-500 hover:text-slate-300 text-xs font-semibold transition">
+        ↺ &nbsp;New Scan
+      </button>
+    </div>
+  </section>
+</main>
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<footer class="border-t border-slate-900 py-5 text-center text-[10px] text-slate-700 flex-shrink-0">
+  Fake Offer Letter &amp; Phishing Inspector · Powered by Gemini 2.5 Flash · Educational &amp; research use only
+</footer>
+
+
+<!-- ════════════════════ SCRIPT ════════════════════ -->
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const API    = 'http://localhost:8000'
+const ARC    = 263.8   // full semicircle circumference at r=84
+const STEPS  = ['Parsing Document…','WHOIS Domain Lookup…','Heuristic Regex Scan…','Gemini AI Analysis…']
+const MAX_MB = 10 * 1024 * 1024
+const OK_EXT = new Set(['.pdf','.docx','.txt','.eml'])
+
+const DEMOS = {
+  equipment: {
+    url:  'careers.apple-jobs.top',
+    text: `Congratulations! You have been selected for an IMMEDIATE HIRE as a Remote Data Entry Specialist at Apple Inc — NO INTERVIEW REQUIRED.
+
+Pay: $45/hr · 100% remote. Contact HR NOW on Telegram: @apple_hr_official
+
+We will issue a cashier's check for $2,850 for equipment setup. You must purchase the MacBook Pro and software from our approved vendor, then wire the balance ($1,550) back via Zelle within 24 HOURS or your offer will be forfeit. This is a time-sensitive position — act immediately.`,
+  },
+  rental: {
+    url:  'gmail.com',
+    text: `Hello,
+
+Thank you for inquiring about the 2BR apartment at 412 Elmwood Drive. I am currently overseas on a church mission in Ghana and am unable to show the property personally.
+
+The apartment is $850/month, and I am offering a special reduced rate for the right tenant. To secure the unit, you must transfer the $1,400 security deposit via CashApp ($mike.landlord24) or in Bitcoin before I mail you the keys and signed lease. Once transferred, I will overnight everything to you.
+
+Please respond quickly — I have 5 other applicants waiting.`,
+  },
+  legit: {
+    url:  'stripe.com',
+    text: `Dear Alex,
+
+We are pleased to extend this formal Offer of Employment for the position of Senior Software Engineer at Stripe, Inc., effective November 1st, 2026.
+
+Compensation Package:
+  • Base Salary: $175,000 per year, paid bi-weekly via direct deposit
+  • Equity: 10,000 RSUs, vesting over 4 years with a 1-year cliff
+  • Benefits: Comprehensive medical, dental, vision; 401(k) with 4% employer match
+
+Your company MacBook Pro will be shipped from our IT department before your start date. No equipment purchase or personal financial contribution of any kind is required from you.
+
+Please sign this offer in DocuSign within 5 business days. For questions, contact your recruiter at recruiting@stripe.com.
+
+Sincerely,
+People Operations
+Stripe, Inc.`,
+  },
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let selectedFile  = null
+let stepTimerRef  = null
+let currentTab    = 'paste'
+
+// ── Tab Switcher ──────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab
+  document.getElementById('pane-upload').classList.toggle('hidden', tab !== 'upload')
+  document.getElementById('pane-paste').classList.toggle('hidden',  tab !== 'paste')
+  document.getElementById('tab-upload').classList.toggle('tab-active', tab === 'upload')
+  document.getElementById('tab-paste').classList.toggle('tab-active',  tab === 'paste')
+  icons()
+}
+
+// ── Char counter ──────────────────────────────────────────────────────────────
+function updateCount() {
+  const n = document.getElementById('offer-text').value.length
+  document.getElementById('char-count').textContent = n.toLocaleString() + ' characters'
+}
+function clearText() {
+  document.getElementById('offer-text').value = ''
+  updateCount()
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B'
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB'
+  return (b/1048576).toFixed(1) + ' MB'
+}
+function handleDrop(ev) {
+  ev.preventDefault()
+  document.getElementById('drop-zone').classList.remove('over')
+  handleFileSelect(ev.dataTransfer.files[0])
+}
+function handleFileSelect(f) {
+  if (!f) return
+  const errEl = document.getElementById('file-err')
+  const errMsg= document.getElementById('file-err-msg')
+  errEl.classList.add('hidden')
+  if (f.size > MAX_MB) {
+    errMsg.textContent = `File too large (${fmtBytes(f.size)}). Max 10 MB.`
+    errEl.classList.remove('hidden'); icons(); return
+  }
+  const ext = '.' + f.name.split('.').pop().toLowerCase()
+  if (!OK_EXT.has(ext)) {
+    errMsg.textContent = `Unsupported type "${ext}". Accepted: PDF, DOCX, TXT, EML.`
+    errEl.classList.remove('hidden'); icons(); return
+  }
+  selectedFile = f
+  document.getElementById('file-name').textContent = f.name
+  document.getElementById('file-ext').textContent  = ext.replace('.','').toUpperCase()
+  document.getElementById('file-size').textContent = fmtBytes(f.size)
+  document.getElementById('file-bar').classList.remove('hidden')
+  document.getElementById('file-bar').style.display = 'flex'
+  document.getElementById('drop-zone').classList.add('hidden')
+  icons()
+}
+function removeFile() {
+  selectedFile = null
+  document.getElementById('file-input').value = ''
+  document.getElementById('file-bar').classList.add('hidden')
+  document.getElementById('drop-zone').classList.remove('hidden')
+  icons()
+}
+
+// ── Demo presets ──────────────────────────────────────────────────────────────
+function loadDemo(key) {
+  const d = DEMOS[key]
+  switchTab('paste')
+  document.getElementById('offer-text').value = d.text
+  document.getElementById('target-url').value = d.url
+  updateCount()
+  resetResults()
+  document.getElementById('scan-err').classList.add('hidden')
+}
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
+async function runScan() {
+  const text = document.getElementById('offer-text').value.trim()
+  const url  = document.getElementById('target-url').value.trim()
+  const errEl= document.getElementById('scan-err')
+  const errMg= document.getElementById('scan-err-msg')
+
+  if (currentTab === 'paste' && !text) {
+    errMg.textContent = 'Please paste offer text or switch to the Upload tab to provide a document.'
+    errEl.style.display = 'flex'; errEl.classList.remove('hidden'); icons(); return
+  }
+  if (currentTab === 'upload' && !selectedFile) {
+    errMg.textContent = 'Please select or drop a supported file before scanning.'
+    errEl.style.display = 'flex'; errEl.classList.remove('hidden'); icons(); return
+  }
+  errEl.classList.add('hidden')
+  resetResults()
+  setLoading(true)
+
+  const form = new FormData()
+  if (selectedFile) form.append('file', selectedFile)
+  if (text)         form.append('text', text)
+  if (url)          form.append('url',  url)
+
+  try {
+    const res = await fetch(`${API}/api/scan/flat`, { method: 'POST', body: form })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(j.detail || `HTTP ${res.status}`)
+    }
+    const data = await res.json()
+    setLoading(false)
+    renderResults(data)
+  } catch(e) {
+    setLoading(false)
+    errMg.textContent = e.message || 'Unexpected error — is the backend running on port 8000?'
+    errEl.style.display = 'flex'; errEl.classList.remove('hidden'); icons()
+  }
+}
+
+// ── Loading steps ─────────────────────────────────────────────────────────────
+function setLoading(on) {
+  document.getElementById('action-row').classList.toggle('hidden', on)
+  const loadRow = document.getElementById('loading-row')
+  loadRow.classList.toggle('hidden', !on)
+  if (on) loadRow.style.display = 'flex'
+  else    loadRow.style.display = 'none'
+  clearTimeout(stepTimerRef)
+
+  if (on) {
+    const wrap = document.getElementById('steps-wrap')
+    wrap.innerHTML = ''
+    STEPS.forEach((s, i) => {
+      const d = document.createElement('div')
+      d.id = 'step' + i
+      d.className = 'flex items-center gap-2.5 text-xs ' + (i === 0 ? 'text-indigo-300' : 'text-slate-700')
+      d.innerHTML = mkStep(i, i === 0)
+      wrap.appendChild(d)
+    })
+    const delays = [1000, 2200, 1500]
+    const adv = (i) => {
+      if (i >= STEPS.length - 1) return
+      stepTimerRef = setTimeout(() => {
+        const cur = document.getElementById('step' + i)
+        cur.className = 'flex items-center gap-2.5 text-xs text-emerald-400'
+        cur.innerHTML = `<span class="w-4 h-4 rounded-full bg-emerald-600 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">✓</span>${STEPS[i]}<span class="ml-auto text-[10px] text-emerald-700">done</span>`
+        const nxt = document.getElementById('step' + (i + 1))
+        nxt.className = 'flex items-center gap-2.5 text-xs text-indigo-300'
+        nxt.innerHTML = mkStep(i + 1, true)
+        adv(i + 1)
+      }, delays[i])
+    }
+    adv(0)
+  }
+  icons()
+}
+
+function mkStep(i, active) {
+  return `<span class="w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold flex-shrink-0
+    ${active ? 'border-indigo-500 text-indigo-400 animate-pulse' : 'border-slate-700 text-slate-700'}">${i+1}</span>
+    ${STEPS[i]}
+    ${active ? '<span class="ml-auto text-[10px] text-indigo-600 animate-pulse">running…</span>' : ''}`
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function renderResults(d) {
+  document.getElementById('idle-state').classList.add('hidden')
+  const rs = document.getElementById('results-state')
+  rs.classList.remove('hidden')
+  rs.style.display = 'flex'
+
+  const score = Math.round(d.threat_index)
+  animateGauge(score)
+
+  // AI fallback badge
+  const isAiUnavailable = d.ai_analysis?.ai_audit_available === false || (d.ai_analysis?.ai_confidence_score === 0 && d.threat_index > 0)
+  const aiBadge = document.getElementById('ai-fallback-badge')
+  if (aiBadge) {
+    aiBadge.classList.toggle('hidden', !isAiUnavailable)
+    if (isAiUnavailable) aiBadge.style.display = 'flex'
+    else aiBadge.style.display = 'none'
+  }
+
+  // Breakdown bars
+  const bd = d.score_breakdown || {}
+  const bars = [
+    { l:'AI Semantic',    v: bd.ai_component           ?? 0, max:40, c:'#8b5cf6' },
+    { l:'Payment Flags',  v: bd.payment_penalty         ?? 0, max:30, c:'#ef4444' },
+    { l:'Domain Risk',    v: bd.domain_penalty          ?? 0, max:30, c:'#f97316' },
+    { l:'Bypass Penalty', v: bd.process_bypass_penalty  ?? 0, max:10, c:'#eab308' },
+  ]
+  document.getElementById('breakdown').innerHTML = bars.map(b => `
+    <div class="flex items-center gap-2.5 text-xs">
+      <span class="w-24 text-slate-600 flex-shrink-0 text-[10px]">${b.l}</span>
+      <div class="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+        <div class="h-full rounded-full transition-all duration-700" style="width:${(b.v/b.max)*100}%;background:${b.c}"></div>
+      </div>
+      <span class="w-6 text-right text-[10px] font-mono font-bold tabular-nums" style="color:${b.v > 0 ? b.c : '#475569'}">${b.v}</span>
+    </div>`).join('')
+
+  // Domain card
+  const di = d.domain_info
+  if (di && di.domain) {
+    document.getElementById('domain-card').classList.remove('hidden')
+    document.getElementById('dom-name').textContent = di.domain
+    document.getElementById('dom-date').textContent = di.creation_date
+      ? new Date(di.creation_date).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})
+      : 'Unknown'
+    const age = di.days_old
+    const ageEl = document.getElementById('dom-age')
+    ageEl.textContent = age != null ? age + ' days' : 'Unknown'
+    ageEl.style.color = age == null ? '#64748b' : age < 30 ? '#f87171' : age < 90 ? '#fbbf24' : '#4ade80'
+    const pen = di.score_penalty || 0
+    const risky = pen >= 15
+    const rb = document.getElementById('dom-risk-bar')
+    rb.className = `flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${risky ? 'bg-red-950/30 border-red-900 text-red-300' : 'bg-emerald-950/30 border-emerald-900 text-emerald-300'}`
+    rb.innerHTML = `<span>${risky ? '⚠️' : '✅'}</span><span>${risky ? `Domain risk penalty +${pen} pts — recently registered or suspicious TLD.` : `Domain age looks legitimate. Penalty: ${pen} pts.`}</span>`
+  }
+
+  // AI summary
+  document.getElementById('verdict-text').textContent = d.verdict_summary || ''
+  const conf = (d.ai_analysis && d.ai_analysis.ai_confidence_score) || 0
+  document.getElementById('conf-bar').style.width = conf + '%'
+  document.getElementById('conf-pct').textContent  = conf + '%'
+
+  // Threat vectors
+  const ai = d.ai_analysis || {}
+  const vectors = [
+    { v: ai.payment_demand_detected,   l:'Wire/Equipment Demand', d:'Upfront payment or equipment purchase' },
+    { v: ai.urgency_detected,          l:'Urgency Pressure',      d:'Coercive language demanding immediate action' },
+    { v: ai.interview_bypass_detected, l:'Interview Bypass',      d:'Hired without formal interview' },
+    { v: ai.free_email_domain_used,    l:'Free Email Recruiter',  d:'Gmail/Hotmail instead of corporate domain' },
+  ]
+  document.getElementById('vectors-grid').innerHTML = vectors.map(x => `
+    <div class="flex items-start gap-2 rounded-xl border p-2.5 ${x.v ? 'bg-red-950/30 border-red-900/60' : 'bg-slate-950/40 border-slate-800'}">
+      <span class="text-xs mt-0.5 flex-shrink-0">${x.v ? '🔴' : '🟢'}</span>
+      <div>
+        <p class="text-[11px] font-bold ${x.v ? 'text-red-300' : 'text-slate-500'}">${x.l}</p>
+        <p class="text-[10px] text-slate-600 leading-snug mt-0.5">${x.d}</p>
+      </div>
+    </div>`).join('')
+
+  // Flags
+  const flags = d.flags || []
+  if (flags.length > 0) {
+    document.getElementById('flags-card').classList.remove('hidden')
+    document.getElementById('flags-count').textContent = flags.length + ' detected'
+    document.getElementById('flags-feed').innerHTML = flags.map(f => `
+      <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-3 flex gap-2.5">
+        <span class="w-2 h-2 rounded-full mt-1 flex-shrink-0" style="background:${sevCol(f.severity)}"></span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip-${f.severity} text-[9px] font-bold px-2 py-0.5 rounded-full border">${f.severity}</span>
+            <span class="text-xs font-semibold text-slate-300">${f.category}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 font-mono italic leading-relaxed">"${f.evidence}"</p>
+        </div>
+      </div>`).join('')
+  }
+
+  // Recommendations
+  const recs = d.safety_recommendations || []
+  if (recs.length > 0) {
+    document.getElementById('recs-card').classList.remove('hidden')
+    document.getElementById('recs-list').innerHTML = recs.map((r, i) => `
+      <li class="flex gap-2.5 text-xs text-slate-300 leading-relaxed">
+        <span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-950 border border-indigo-800/60 text-indigo-400 text-[9px] flex items-center justify-center font-black">${i+1}</span>
+        ${r}
+      </li>`).join('')
+  }
+
+  icons()
+}
+
+// ── Gauge animation ───────────────────────────────────────────────────────────
+function animateGauge(score) {
+  const isRed   = score >= 70
+  const isAmber = score >= 35
+  const col   = isRed ? '#ef4444' : isAmber ? '#f59e0b' : '#22c55e'
+  const label = isRed ? 'Critical Scam Detected' : isAmber ? 'Elevated Risk' : 'Verified Safe'
+  const emoji = isRed ? '🚨' : isAmber ? '⚠️' : '✅'
+  const bCls  = isRed
+    ? 'bg-red-950/40 border-red-800 text-red-400'
+    : isAmber ? 'bg-amber-950/40 border-amber-800 text-amber-400'
+    : 'bg-emerald-950/40 border-emerald-800 text-emerald-400'
+
+  const arc   = document.getElementById('gauge-arc')
+  const scoreEl = document.getElementById('gauge-score')
+  const badge = document.getElementById('status-badge')
+
+  arc.style.stroke = col
+  arc.style.strokeDashoffset = ARC - (score / 100) * ARC
+  scoreEl.style.color = col
+  badge.className = `flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold ${bCls}`
+  document.getElementById('badge-emoji').textContent = emoji
+  document.getElementById('badge-label').textContent = label
+
+  // Animated counter
+  const start = performance.now(), dur = 1300
+  const tick = (now) => {
+    const p = Math.min((now - start) / dur, 1)
+    const e = 1 - Math.pow(1 - p, 3)
+    scoreEl.textContent = Math.round(e * score)
+    if (p < 1) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
+
+function sevCol(s) {
+  return { Critical:'#f87171', High:'#fb923c', Medium:'#facc15', Low:'#4ade80' }[s] || '#94a3b8'
+}
+
+// ── Reset helpers ─────────────────────────────────────────────────────────────
+function resetResults() {
+  document.getElementById('idle-state').classList.remove('hidden')
+  const rs = document.getElementById('results-state')
+  rs.classList.add('hidden'); rs.style.display = 'none'
+  ;['domain-card','flags-card','recs-card'].forEach(id => document.getElementById(id).classList.add('hidden'))
+}
+
+function resetAll() {
+  clearText()
+  document.getElementById('target-url').value = ''
+  removeFile()
+  resetResults()
+  document.getElementById('scan-err').classList.add('hidden')
+}
+
+function icons() { lucide.createIcons() }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  switchTab('paste')
+  icons()
+})
+</script>
+</body>
+</html>
