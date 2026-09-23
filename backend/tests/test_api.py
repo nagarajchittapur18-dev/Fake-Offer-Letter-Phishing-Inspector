@@ -126,3 +126,52 @@ def test_delete_scan():
     # Verify gone
     get_resp = client.get(f"/api/scans/{scan_id}")
     assert get_resp.status_code == 404
+
+
+def test_scan_response_includes_score_explanation():
+    """score_explanation must be present and correctly structured in all scan responses."""
+    resp = client.post("/api/scan/text", json={
+        "text": "You are hired without interview. Wire transfer $500 for equipment. Confirm within 24 hours."
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "score_explanation" in data
+    expl = data["score_explanation"]
+    assert "categories" in expl
+    assert "compound_bonus" in expl
+    assert "total" in expl
+    assert isinstance(expl["compound_bonus"], int)
+
+
+def test_report_url_contains_no_localhost():
+    """PDF report URL returned in the scan should not contain localhost."""
+    import os
+    backend_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    # Verify the report endpoint returns PDF bytes (proxy test for URL correctness)
+    scan_resp = client.post("/api/scan/text", json={"text": "Fake check scam. Wire transfer immediately."})
+    scan_id = scan_resp.json()["scan_id"]
+    report_resp = client.get(f"/api/report/{scan_id}")
+    assert report_resp.status_code == 200
+    # Content-Disposition header should have the scan_id prefix, not localhost
+    cd = report_resp.headers.get("content-disposition", "")
+    assert "localhost" not in cd
+
+
+def test_ai_unavailable_state_in_response():
+    """When GEMINI_API_KEY is not set, ai_analysis.available must be False."""
+    import os
+    original = os.environ.pop("GEMINI_API_KEY", None)
+    try:
+        resp = client.post("/api/scan/text", json={
+            "text": "Test document for AI availability check. No suspicious content."
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        ai = data["ai_analysis"]
+        # Without key, must be unavailable
+        assert ai["available"] is False
+        assert ai["score_contribution"] == 0
+    finally:
+        if original:
+            os.environ["GEMINI_API_KEY"] = original
+

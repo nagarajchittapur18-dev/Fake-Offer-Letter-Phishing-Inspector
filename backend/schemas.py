@@ -127,6 +127,8 @@ class ScanResponse(BaseModel):
     verdict_summary:     str
     risk_signals:        List[RiskSignal]
     score_breakdown:     ScoreBreakdown
+    score_explanation:   Dict[str, Any]  = Field(default_factory=dict,
+                             description="Per-signal score trace for 'Why this score?' UI")
     domain_intelligence: Optional[DomainIntelligence] = None
     url_analyses:        List[URLAnalysis] = []
     ai_analysis:         AIAnalysis

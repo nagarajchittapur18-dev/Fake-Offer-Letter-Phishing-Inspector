@@ -102,7 +102,7 @@ async def _run_pipeline(
     )
 
     # ── 7. Score ──────────────────────────────────────────────────────────────
-    threat_index, risk_level, breakdown, verdict, recs = compute_threat(
+    threat_index, risk_level, breakdown, verdict, recs, score_explanation = compute_threat(
         all_signals, domain_intel, ai_analysis
     )
 
@@ -113,6 +113,7 @@ async def _run_pipeline(
         verdict_summary=verdict,
         risk_signals=all_signals,
         score_breakdown=breakdown,
+        score_explanation=score_explanation,
         domain_intelligence=domain_intel,
         url_analyses=url_analyses,
         ai_analysis=ai_analysis,

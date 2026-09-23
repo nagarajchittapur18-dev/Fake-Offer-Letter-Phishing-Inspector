@@ -78,6 +78,16 @@ export interface ScanResponse {
   url_analyses: URLAnalysis[];
   ai_analysis: AIAnalysis;
   recommendations: string[];
+  score_explanation: {
+    categories: Record<string, {
+      signals: Array<{ label: string; points: number }>;
+      subtotal: number;
+      cap: number;
+    }>;
+    compound_bonus: number;
+    compound_reason: string | null;
+    total: number;
+  };
   metadata: Record<string, unknown>;
   input_type: InputType;
   scanned_at: string;
@@ -108,10 +118,18 @@ export interface ScanHistoryItem {
 
 // ── API client ─────────────────────────────────────────────────────────────────
 
-const BASE =
-  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+/**
+ * BASE is determined in priority order:
+ * 1. VITE_API_BASE_URL (set via .env.production or Render env)  ← never localhost in prod
+ * 2. /api proxy — only when running on localhost dev server
+ * 3. Production Render URL — final fallback
+ */
+const BASE: string =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ||
+  (typeof window !== "undefined" &&
+   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
     ? "/api"
-    : "https://fake-offer-letter-phishing-inspector.onrender.com/api";
+    : "https://fake-offer-letter-phishing-inspector.onrender.com/api");
 
 export async function getHealth(): Promise<HealthResponse> {
   const r = await fetch(`${BASE}/health`);

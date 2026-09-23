@@ -170,12 +170,16 @@ def test_compute_threat_returns_valid_structure():
         verdict_summary="Test", semantic_flags=[],
     )
     payment_sigs = detect_payment_risk("Send a wire transfer for equipment purchase.")
-    threat_index, risk_level, breakdown, verdict, recs = compute_threat(
+    threat_index, risk_level, breakdown, verdict, recs, explanation = compute_threat(
         payment_sigs, None, ai
     )
     assert 0 <= threat_index <= 100
     assert breakdown.total == threat_index
     assert len(recs) > 0
+    # score_explanation must be a dict
+    assert isinstance(explanation, dict)
+    assert "categories" in explanation
+    assert "total" in explanation
 
 def test_compute_threat_high_risk_scam():
     ai = AIAnalysis(
@@ -194,10 +198,10 @@ def test_compute_threat_high_risk_scam():
         + detect_recruitment_anomalies(text)
         + detect_email_provider_risk("gmail.com")
     )
-    threat_index, risk_level, breakdown, verdict, recs = compute_threat(
+    threat_index, risk_level, breakdown, verdict, recs, explanation = compute_threat(
         all_signals, None, ai
     )
-    assert threat_index >= 25  # Must at least reach SUSPICIOUS given all the signals
+    assert threat_index >= 25  # Must at least reach SUSPICIOUS
     assert risk_level in (RiskLevel.SUSPICIOUS, RiskLevel.HIGH, RiskLevel.CRITICAL)
 
 def test_compute_threat_clean_text():
@@ -212,7 +216,77 @@ def test_compute_threat_clean_text():
         + detect_urgency(text)
         + detect_recruitment_anomalies(text)
     )
-    threat_index, risk_level, breakdown, verdict, recs = compute_threat(
+    threat_index, risk_level, breakdown, verdict, recs, explanation = compute_threat(
         all_signals, None, ai
     )
     assert risk_level == RiskLevel.LOW
+
+def test_compound_bonus_triggers_with_3_categories():
+    """When Financial + Urgency + Recruitment are all significantly triggered,
+    a compound bonus should be added to the total score."""
+    ai = AIAnalysis(
+        available=False, confidence_score=0, score_contribution=0,
+        verdict_summary="N/A", semantic_flags=[],
+    )
+    text = (
+        "You are hired without interview. Wire transfer $500 for equipment. "
+        "Confirm within 24 hours. Do not discuss this with anyone."
+    )
+    all_signals = (
+        detect_payment_risk(text)
+        + detect_urgency(text)
+        + detect_recruitment_anomalies(text)
+    )
+    _, _, breakdown, _, _, explanation = compute_threat(all_signals, None, ai)
+    # compound_bonus in explanation should be >= 0
+    assert explanation["compound_bonus"] >= 0
+    # If 3+ significant categories, compound_bonus should be > 0
+    cat_scores = {
+        "Financial": breakdown.financial_payment,
+        "Urgency": breakdown.urgency_coercion,
+        "Recruitment": breakdown.recruitment_anomaly,
+    }
+    multi_significant = sum(1 for v in cat_scores.values() if v >= 5)
+    if multi_significant >= 3:
+        assert explanation["compound_bonus"] > 0
+
+def test_score_explanation_structure():
+    """score_explanation must have categories, compound_bonus, total keys."""
+    ai = AIAnalysis(
+        available=False, confidence_score=0, score_contribution=0,
+        verdict_summary="N/A", semantic_flags=[],
+    )
+    signals = detect_payment_risk("Please wire transfer funds for equipment purchase reimbursement.")
+    _, _, _, _, _, expl = compute_threat(signals, None, ai)
+    assert "categories" in expl
+    assert "compound_bonus" in expl
+    assert "total" in expl
+    assert isinstance(expl["compound_bonus"], int)
+    # Financial category should appear in explanation
+    assert "Financial/Payment" in expl["categories"]
+
+def test_ai_unavailable_fallback():
+    """When AI is unavailable, score_contribution must be 0 and verdict uses heuristic."""
+    ai = AIAnalysis(
+        available=False, confidence_score=0, score_contribution=0,
+        verdict_summary="AI unavailable", semantic_flags=[],
+    )
+    signals = detect_urgency("Please confirm immediately — offer will be revoked within 24 hours.")
+    _, _, breakdown, verdict, _, _ = compute_threat(signals, None, ai)
+    assert breakdown.ai_semantic == 0
+    # Verdict must be heuristic-generated (not from AI)
+    assert len(verdict) > 10
+
+def test_email_provider_distinct_from_domain_age():
+    """Gmail classification should NOT be confused with domain age.
+    Free email provider check and domain age are separate risk signals."""
+    from services.security.email_analyzer import classify_email_domain
+    # Gmail is a free email provider (high risk signal)
+    ptype, score, explanation = classify_email_domain("gmail.com")
+    assert ptype == "Free Email Provider"
+    assert score == 10
+    # Corporate domain should score 0 for email provider check
+    ptype2, score2, _ = classify_email_domain("amazon.com")
+    assert ptype2 == "Corporate Domain"
+    assert score2 == 0
+

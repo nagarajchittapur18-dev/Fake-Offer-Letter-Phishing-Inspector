@@ -12,11 +12,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy all /api calls to the FastAPI backend during development
+      // Dev-server proxy: all /api calls → FastAPI backend
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
   },
+  // VITE_API_BASE_URL is picked up automatically from .env / .env.production
+  // No extra define needed — Vite exposes all VITE_* vars via import.meta.env
 })

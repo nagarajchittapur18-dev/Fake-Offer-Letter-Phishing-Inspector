@@ -38,7 +38,11 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\bguaranteed\s+(?:job|position|employment|hire)\b",
         ],
         points=8, severity=Severity.HIGH,
-        explanation="Legitimate employers always conduct interviews. 'Immediate hire without interview' is a classic scam line.",
+        explanation=(
+            "An immediate job offer without a standard interview or verification process "
+            "is a significant recruitment-risk indicator, particularly when combined with "
+            "payment requests or urgency pressure."
+        ),
     ),
     _RecruitmentPattern(
         name="Informal contact channel",
@@ -47,7 +51,11 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\bcontact\s+(?:via|on|through)\s+(?:telegram|whatsapp|signal|text\s+only)\b",
         ],
         points=6, severity=Severity.HIGH,
-        explanation="Conducting recruitment exclusively over Telegram, WhatsApp or Signal avoids auditable email trails.",
+        explanation=(
+            "Conducting recruitment exclusively via informal messaging apps (Telegram, WhatsApp, Signal) "
+            "without any verifiable corporate communication is a supporting risk indicator. "
+            "Legitimate organisations typically use auditable, official contact channels."
+        ),
     ),
     _RecruitmentPattern(
         name="No experience / qualification required",
@@ -57,7 +65,10 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\banyone\s+can\s+(?:apply|qualify|join)\b",
         ],
         points=4, severity=Severity.MEDIUM,
-        explanation="Jobs requiring no experience offering high pay are a recruitment scam red flag.",
+        explanation=(
+            "A high-paying role advertised with no experience or qualifications required "
+            "is a common pattern in fraudulent remote-work postings."
+        ),
     ),
     _RecruitmentPattern(
         name="Unusually high salary for minimal work",
@@ -66,7 +77,10 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\bearn\s+(?:up\s+to\s+)?\$\s*(?:\d{3,})\s+(?:per\s+(?:day|hour)|a\s+day|daily)\b",
         ],
         points=4, severity=Severity.MEDIUM,
-        explanation="Promises of unusually high pay for simple/remote work are associated with scam job postings.",
+        explanation=(
+            "Promises of very high pay for simple or part-time remote work are frequently "
+            "associated with scam job postings. Verify the role and salary against industry benchmarks."
+        ),
     ),
     _RecruitmentPattern(
         name="Immediate personal information request",
@@ -75,7 +89,10 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\bsend\s+(?:us\s+)?(?:your\s+)?(?:ID|passport|driving\s+licence|national\s+ID)\s+(?:copy|scan|photo)\b",
         ],
         points=6, severity=Severity.HIGH,
-        explanation="Requesting sensitive personal/financial information before formal onboarding is a phishing indicator.",
+        explanation=(
+            "Requesting sensitive personal or financial information early in an unsolicited "
+            "recruitment process — before formal onboarding — is a phishing indicator."
+        ),
     ),
     _RecruitmentPattern(
         name="Vague company or role description",
@@ -85,7 +102,10 @@ _RECRUITMENT_PATTERNS: list[_RecruitmentPattern] = [
             r"\bonline\s+(?:marketing\s+)?(?:agent|rep|representative)\s+(?:needed|wanted|required)\b",
         ],
         points=3, severity=Severity.LOW,
-        explanation="Vague job titles like 'data entry agent' or 'mystery shopper' are frequently used in remote scams.",
+        explanation=(
+            "Vague or generic job titles (e.g., 'data entry agent', 'mystery shopper') "
+            "without a named employer are commonly used in remote-work fraud schemes."
+        ),
     ),
 ]
 
